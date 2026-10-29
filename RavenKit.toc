@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: |cff9482c9RavenKit|r [AllowLoadGameType camelot][ExcludeLoadGameType standard, classic]
+## Notes: One-command macros, action bar slots and keybinds for Raven Soulbinder (warlock). /ravenkit
+## Author: Derek Ross
+## Version: 0.1.0
+## OptionalDeps: ElvUI, Grimoire
+## SavedVariablesPerCharacter: RavenKitCharDB
+
+RavenKit.lua
