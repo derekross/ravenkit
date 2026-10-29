@@ -1,0 +1,23 @@
+<!doctype html><html><head><style>html,body{margin:0;padding:0;background:transparent}svg{display:block}</style></head><body>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+ <defs>
+  <radialGradient id="bg" cx=".5" cy=".45" r=".7"><stop offset="0" stop-color="#2a1838"/><stop offset=".7" stop-color="#140c1c"/><stop offset="1" stop-color="#0a070e"/></radialGradient>
+  <linearGradient id="capTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a3684"/><stop offset="1" stop-color="#36204f"/></linearGradient>
+  <linearGradient id="capSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a183d"/><stop offset="1" stop-color="#160c22"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d27a"/><stop offset=".5" stop-color="#c79a3b"/><stop offset="1" stop-color="#8a6420"/></linearGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ </defs>
+ <rect x="4" y="4" width="248" height="248" rx="46" fill="url(#bg)"/>
+ <!-- keycap body (side) -->
+ <rect x="46" y="60" width="164" height="164" rx="28" fill="url(#capSide)" stroke="url(#gold)" stroke-width="6"/>
+ <!-- keycap top -->
+ <rect x="54" y="40" width="148" height="152" rx="24" fill="url(#capTop)" stroke="url(#gold)" stroke-width="5"/>
+ <!-- gold corner studs -->
+ <g fill="url(#gold)"><circle cx="68" cy="54" r="5.5"/><circle cx="188" cy="54" r="5.5"/><circle cx="68" cy="178" r="5.5"/><circle cx="188" cy="178" r="5.5"/></g>
+ <!-- fel raven silhouette -->
+ <g filter="url(#glow)">
+  <path fill="#7dff5a" d="M190 100 L160 88 C152 74 134 72 124 84 C114 96 110 108 100 120 C90 132 80 146 64 168 L92 162 C104 158 116 154 124 150 L120 172 L126 172 L130 152 L134 172 L140 172 L136 150 C150 142 158 130 162 116 C164 108 166 104 172 102 Z"/>
+  <path fill="#3fae2c" d="M112 116 C124 110 138 112 148 122 C136 126 120 130 98 146 C102 134 106 124 112 116 Z"/>
+ </g>
+ <circle cx="146" cy="90" r="3.6" fill="#14091d"/>
+</svg></body></html>
