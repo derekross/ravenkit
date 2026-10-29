@@ -1,6 +1,6 @@
 # RavenKit
 
-Private WoW: Forever addon for Raven Soulbinder (Undead Affliction Warlock). One command creates
+Personal WoW: Forever addon for Raven Soulbinder (Undead Affliction Warlock). One command creates
 the macros, fills reserved action-bar slots and sets the keybinds. While leveling, newly learned
 spells (and new ranks) drop into their reserved slots automatically.
 
@@ -140,3 +140,7 @@ was placed).
 - Spellbook API used to find spells by name (C_SpellBook skill lines); falls back to
   C_Spell.GetSpellInfo(name).
 - Undo when the binding set was account-wide before setup (it saves back to that set).
+
+## License
+
+MIT. See `LICENSE`.
