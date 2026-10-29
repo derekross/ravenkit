@@ -1,0 +1,6 @@
+package-as: RavenKit
+
+ignore:
+  - README.md
+  - .github
+  - tools
