@@ -111,8 +111,10 @@ RK PetAssist
 /petattack [@party1target]
 ```
 
-RavenKit rewrites these bodies on setup and whenever spells change, so edit them in
-`RavenKit.lua`, not in the macro window.
+RavenKit keeps these bodies up to date when spells change. If you edit one in the macro window,
+auto-fill leaves your version alone; `/ravenkit setup` resets it to RavenKit's body. To change
+a macro for good, edit it in `RavenKit.lua`. RavenKit only touches its own character macros,
+never an account-wide macro with the same name.
 
 **If `[known:]` doesn't work in Forever** (RK Panic does nothing on a level 42+ character with
 Death Coil): set `useKnownConditional = false` in the WARLOCK profile. RavenKit then writes
@@ -139,13 +141,24 @@ was placed).
   known rank either way.
 - Spellbook API used to find spells by name (C_SpellBook skill lines); falls back to
   C_Spell.GetSpellInfo(name).
-- Undo when the binding set was account-wide before setup (it saves back to that set).
+- Undo when the binding set was account-wide before setup (it switches back to the account set,
+  the way the game's Settings panel does).
 
 ## License
 
 MIT. See `LICENSE`.
 
 ## Changelog
+
+### 0.2.2
+- No duplicate macros on login: auto-fill waits until the macro list has loaded.
+- Only this character's macros are matched, never an account-wide macro of the same name.
+- Auto-fill keeps your edits to an RK macro; `/ravenkit setup` resets them.
+- Undo switches back to account-wide bindings if those were active before setup, instead of
+  saving this character's keys into the account set.
+- Pet keys move to the live pet bar's Attack/Follow buttons when a demon is summoned.
+- The "macros full" warning shows once per session with the real count.
+- Setup says so when action slots were skipped because something was on the cursor.
 
 ### 0.2.1
 - Slot 3 stays empty until Drain Life is learned (no more Shadow Bolt stand-in). Setup removes

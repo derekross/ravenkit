@@ -122,8 +122,12 @@ local MOVEMENT = {
 local AUTO_ICON = 134400 -- INV_Misc_QuestionMark: the "automatic" icon #showtooltip replaces
 local FALLBACK_ICON = "Spell_Shadow_ShadowBolt"
 local PET_SLOTS = NUM_PET_ACTION_SLOTS or 10
-local CHARACTER_SET = (BINDING_SET and BINDING_SET.Character) or CHARACTER_BINDINGS or 2
-local MAX_CHAR_MACROS = (Constants and Constants.MacroConsts and Constants.MacroConsts.MAX_CHARACTER_MACROS) or MAX_CHARACTER_MACROS or 18
+local BindingSet = Enum and Enum.BindingSet or {}
+local CHARACTER_SET = BindingSet.Character or CHARACTER_BINDINGS or 2
+local ACCOUNT_SET = BindingSet.Account or ACCOUNT_BINDINGS or 1
+local MacroConsts = Constants and Constants.MacroConsts or {}
+local MAX_CHAR_MACROS = MacroConsts.MAX_CHARACTER_MACROS or MAX_CHARACTER_MACROS or 30
+local MAX_ACCOUNT_MACROS = MacroConsts.MAX_ACCOUNT_MACROS or MAX_ACCOUNT_MACROS or 120
 
 -- =====================================================================================
 -- Helpers
@@ -279,19 +283,48 @@ local function MacroIcon(macro)
 	return fileID or name, name
 end
 
+-- Index of this character's macro with the given name (never an account macro).
+local function CharMacroIndex(name)
+	local _, numChar = GetNumMacros()
+	for index = MAX_ACCOUNT_MACROS + 1, MAX_ACCOUNT_MACROS + (numChar or 0) do
+		if GetMacroInfo(index) == name then return index end
+	end
+end
+
+-- The macro list loads a moment after login; until then GetNumMacros() reports 0/0 and
+-- every lookup misses, which would create duplicates. UPDATE_MACROS marks it loaded.
+local macrosLoaded
+local function MacrosReady()
+	if macrosLoaded then return true end
+	local numAccount, numChar = GetNumMacros()
+	if (numAccount or 0) + (numChar or 0) > 0 or not next(db.macroIcon or {}) then
+		macrosLoaded = true
+	end
+	return macrosLoaded
+end
+
+local fullWarned
 local function UpdateMacros(quiet)
-	local created, edited, failed = {}, 0, {}
+	if not MacrosReady() then return end
+	local created, edited, failed, kept = {}, 0, {}, {}
 	db.macroIcon = db.macroIcon or {}
+	db.macroBody = db.macroBody or {}
 	for _, macro in ipairs(profile.macros) do
 		local body = MacroBody(macro)
 		local icon, iconKey = MacroIcon(macro)
-		local index = GetMacroIndexByName(macro.name)
-		if index and index > 0 then
+		local index = CharMacroIndex(macro.name)
+		if index then
 			local _, _, oldBody = GetMacroInfo(index)
-			if oldBody ~= body or db.macroIcon[macro.name] ~= iconKey then
+			-- Auto-fill leaves a macro alone once you've edited it; /ravenkit setup resets it.
+			local userEdited = db.macroBody[macro.name] and oldBody ~= db.macroBody[macro.name]
+			if userEdited and quiet then
+				table.insert(kept, macro.name)
+			elseif oldBody ~= body or db.macroIcon[macro.name] ~= iconKey then
 				EditMacro(index, macro.name, icon, body)
-				db.macroIcon[macro.name] = iconKey
+				db.macroIcon[macro.name], db.macroBody[macro.name] = iconKey, body
 				edited = edited + 1
+			else
+				db.macroBody[macro.name] = body
 			end
 		else
 			local _, numChar = GetNumMacros()
@@ -299,14 +332,21 @@ local function UpdateMacros(quiet)
 				table.insert(failed, macro.name)
 			else
 				CreateMacro(macro.name, icon, body, true)
-				db.macroIcon[macro.name] = iconKey
-				table.insert(created, macro.name)
+				if CharMacroIndex(macro.name) then
+					db.macroIcon[macro.name], db.macroBody[macro.name] = iconKey, body
+					table.insert(created, macro.name)
+				else
+					table.insert(failed, macro.name)
+				end
 			end
 		end
 	end
-	if #failed > 0 then
+	-- Auto-fill runs on every spell change; warn about full macros once per session.
+	if #failed > 0 and (not quiet or not fullWarned) then
+		fullWarned = true
+		local _, numChar = GetNumMacros()
 		Print(("|cffff5555Character macros are full (%d/%d)|r; could not create: %s. Delete some and run /ravenkit setup again.")
-			:format(MAX_CHAR_MACROS, MAX_CHAR_MACROS, table.concat(failed, ", ")))
+			:format(numChar or 0, MAX_CHAR_MACROS, table.concat(failed, ", ")))
 	end
 	if not quiet and (#created > 0 or edited > 0) then
 		Print(("Macros: %d created, %d updated."):format(#created, edited))
@@ -320,8 +360,8 @@ end
 -- What a reserved slot should hold right now: "macro", macroIndex | "spell", spellID | nil.
 local function Wanted(entry)
 	if entry.macro then
-		local index = GetMacroIndexByName(entry.macro)
-		if index and index > 0 then return "macro", index end
+		local index = CharMacroIndex(entry.macro)
+		if index then return "macro", index end
 		return
 	end
 	local id = FindSpell(entry.spell) or FindSpell(entry.placeholder)
@@ -344,7 +384,7 @@ end
 -- Fills reserved slots. A slot is only touched when it's empty or already holds the
 -- RavenKit item; spells are re-placed when a new rank (or Drain Life) arrives.
 local function PlaceActions(quiet)
-	if GetCursorInfo() then return end -- don't drop whatever Derek is dragging
+	if GetCursorInfo() then return false end -- don't drop whatever Derek is dragging
 	db.placed = db.placed or {}
 	local placed, skipped = {}, {}
 	for _, entry in ipairs(profile.keys) do
@@ -394,6 +434,7 @@ local function PlaceActions(quiet)
 	if #skipped > 0 and not quiet then
 		Print("Left alone (holds something you placed): " .. table.concat(skipped, ", "))
 	end
+	return true
 end
 
 -- =====================================================================================
@@ -453,11 +494,19 @@ local function UndoBindings()
 		return
 	end
 	local restored = 0
-	for key, old in pairs(db.undo) do
-		if old == "" then SetBinding(key) else SetBinding(key, old) end
-		restored = restored + 1
+	if db.prevBindingSet == ACCOUNT_SET then
+		-- RavenKit only ever saved to the character set, so the account set is untouched.
+		for _ in pairs(db.undo) do restored = restored + 1 end
+		LoadBindings(ACCOUNT_SET)
+		SaveBindings(ACCOUNT_SET)
+		Print("Switched back to your account-wide key bindings.")
+	else
+		for key, old in pairs(db.undo) do
+			if old == "" then SetBinding(key) else SetBinding(key, old) end
+			restored = restored + 1
+		end
+		SaveBindings(CHARACTER_SET)
 	end
-	SaveBindings(db.prevBindingSet or CHARACTER_SET)
 	db.undo, db.prevBindingSet = nil, nil
 	db.applied, db.declined = false, true
 	Print(("Restored %d key bindings. Macros and action slots were left as they are; auto-fill is off until /ravenkit setup."):format(restored))
@@ -467,15 +516,36 @@ end
 -- Commands
 -- =====================================================================================
 
+-- Pet keys bind to wherever Attack/Follow sit on the live pet bar. Without a demon out
+-- they fall back to slots 1/2, so re-check when one is summoned. Only keys still bound
+-- to a pet button (that is, RavenKit's) are moved.
+local function UpdatePetBindings()
+	if not (db and db.applied) or not UnitExists("pet") then return end
+	local changed
+	for _, entry in ipairs(profile.keys) do
+		if entry.pet then
+			local bound, want = GetBindingAction(entry.key), EntryCommand(entry)
+			if bound ~= want and bound:find("^BONUSACTIONBUTTON") then
+				SetBinding(entry.key, want)
+				changed = true
+			end
+		end
+	end
+	if changed then SaveBindings(CHARACTER_SET) end
+end
+
 local function Setup()
 	UpdateMacros(false)
-	PlaceActions(false)
+	local slotsDone = PlaceActions(false)
 	ApplyBindings()
 	db.applied, db.declined = true, nil
 	local grimoire = C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("Grimoire")
 	if not grimoire then Print("Grimoire isn't loaded: Q, Z and SHIFT-Z do nothing until it is.") end
 	if not UnitExists("pet") then
-		Print("No demon out: pet keys use pet bar slots 1/2. Summon one and run setup again to check.")
+		Print("No demon out: pet keys use pet bar slots 1/2 until you summon one.")
+	end
+	if slotsDone == false then
+		Print("|cffffd100Action slots skipped|r: something was on your cursor. Run /ravenkit setup again.")
 	end
 	Print("Setup done. /ravenkit status to review, /ravenkit undo to restore your old keys.")
 end
@@ -490,8 +560,7 @@ local function Status()
 		if entry.spell then
 			learned = IsKnown(entry.spell) and " |cff55ff55learned|r" or " |cff888888not learned|r"
 		elseif entry.macro then
-			local index = GetMacroIndexByName(entry.macro)
-			learned = (index and index > 0) and " |cff55ff55macro ok|r" or " |cffff5555macro missing|r"
+			learned = CharMacroIndex(entry.macro) and " |cff55ff55macro ok|r" or " |cffff5555macro missing|r"
 		end
 		local where = entry.slot and (" slot " .. entry.slot) or ""
 		print(("  %-8s %s%s -> %s%s"):format(entry.key, EntryLabel(entry), where, mark, learned))
@@ -555,6 +624,8 @@ local function OnLogin()
 	db = RavenKitCharDB
 	frame:RegisterEvent("SPELLS_CHANGED")
 	frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+	frame:RegisterEvent("UPDATE_MACROS")
+	frame:RegisterEvent("PET_BAR_UPDATE")
 	-- Classic fires LEARNED_SPELL_IN_TAB, modern clients LEARNED_SPELL_IN_SKILL_LINE;
 	-- registering an event the client doesn't have is an error, so try each.
 	pcall(frame.RegisterEvent, frame, "LEARNED_SPELL_IN_TAB")
@@ -564,9 +635,25 @@ local function OnLogin()
 	end
 end
 
+local petPending
+local function RequestPetBindings()
+	if petPending or not (db and db.applied) then return end
+	petPending = true
+	C_Timer.After(1, function()
+		petPending = nil
+		RunSafe("Pet keys", UpdatePetBindings, true)
+	end)
+end
+
 frame:SetScript("OnEvent", function(_, event)
 	if event == "PLAYER_LOGIN" then
 		OnLogin()
+	elseif event == "UPDATE_MACROS" then
+		local first = not macrosLoaded
+		macrosLoaded = true
+		if first then RequestAutoFill() end
+	elseif event == "PET_BAR_UPDATE" then
+		RequestPetBindings()
 	elseif event == "PLAYER_REGEN_ENABLED" then
 		for key, func in pairs(queued) do
 			queued[key] = nil
