@@ -57,7 +57,7 @@ never move as you level. Talent spells fall back to a baseline spell when you do
 |---|---|---|
 | 1 | Shadow Bolt (slot 1) | RK Burst: Shadowburn (cancels your cast) if talented, else Searing Pain (25) |
 | 2 | RK Corruption: Corruption + pet attack (2) | Siphon Life if talented, else Drain Mana (26) |
-| 3 | Curse/Bane of Agony (3) | Curse of the Elements (27) |
+| 3 | RK Agony: Bane/Curse of Agony, boosted by Amplify Curse when talented and ready (3) | Curse of the Elements (27) |
 | 4 | Immolate (4) | Conflagrate, else Wrack, else Soul Fire (28) |
 | 5 | Drain Life (5) | Drain Soul (29) |
 | Q | Life Tap (6) | Curse of Weakness (30) |
@@ -86,7 +86,7 @@ learned, so they change with your talents). `/ravenkit status` lists each key.
 RavenKit keeps the bodies up to date when spells change. If you edit one in the macro window,
 auto-fill leaves your version alone; `/ravenkit setup` resets it to RavenKit's body. To change
 a macro for good, edit it in `RavenKit.lua`. RavenKit only touches its own character macros,
-never an account-wide macro with the same name. It uses 13 character macros.
+never an account-wide macro with the same name. It uses 14 character macros.
 
 ## Editing
 
@@ -117,6 +117,10 @@ was placed).
 MIT. See `LICENSE`.
 
 ## Changelog
+
+### 0.3.1
+- Key 3 is now RK Agony: casts Amplify Curse first (when talented and off cooldown), then Agony.
+- Succubus macros (F Seduction, SHIFT-F Lash of Pain) also match Forever's "Sayaad" name.
 
 ### 0.3.0
 - New key layout for raiding, PvP and leveling: plain keys on bar 1, a SHIFT layer on bar 3

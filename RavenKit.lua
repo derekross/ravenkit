@@ -35,6 +35,7 @@ local S = {
 	weakness = "Curse of Weakness",
 	tongues = "Curse of Tongues",
 	exhaustion = "Curse of Exhaustion", -- talent (Affliction)
+	amplifyCurse = "Amplify Curse",     -- talent (Affliction, 27)
 	-- demon abilities (pet spellbook)
 	spellLock = "Spell Lock",
 	devourMagic = "Devour Magic",
@@ -43,6 +44,9 @@ local S = {
 	sacrifice = "Sacrifice",
 	fireShield = "Fire Shield",
 }
+
+-- [pet:] matches the demon type; Forever calls the Succubus "Sayaad", so accept both.
+local SUCCUBUS = "Succubus/Sayaad"
 
 -- Stone ranks, best first: { create spell, item IDs (Improved Healthstone variants first) }.
 -- Only used for the Z / SHIFT-Z macros when Grimoire isn't loaded.
@@ -102,6 +106,15 @@ local PROFILES = {
 		macros = {
 			{ name = "RK Corruption", icon = "Spell_Shadow_AbominationExplosion", spells = { S.corruption },
 				body = ("#showtooltip %s\n/petattack\n/cast %s"):format(S.corruption, S.corruption) },
+			-- 3: Bane (Curse) of Agony, boosted by Amplify Curse when it's talented and ready.
+			{ name = "RK Agony", icon = "Spell_Shadow_CurseOfSargeras", spells = S.agony,
+				body = function(_, known)
+					local agony = known(S.agony[2]) and S.agony[2] or S.agony[1]
+					if known(S.amplifyCurse) then
+						return ("#showtooltip %s\n/cast [harm,nodead] %s\n/cast %s"):format(agony, S.amplifyCurse, agony)
+					end
+					return ("#showtooltip %s\n/cast %s"):format(agony, agony)
+				end },
 			-- E: Tongues; CTRL-E: Exhaustion once talented.
 			{ name = "RK Curse", icon = "Spell_Shadow_CurseOfTounges", spells = { S.tongues },
 				body = function(_, known)
@@ -138,13 +151,13 @@ local PROFILES = {
 			-- Pet abilities live in the pet's spellbook, so these keep their fixed icons.
 			{ name = "RK PetSpecial", icon = "Spell_Shadow_MindRot",
 				body = ("#showtooltip\n/cast [@focus,harm,nodead,pet:Felhunter][@mouseover,harm,nodead,pet:Felhunter][pet:Felhunter] %s\n"
-					.. "/cast [@focus,harm,nodead,pet:Succubus][@mouseover,harm,nodead,pet:Succubus][pet:Succubus] %s")
-					:format(S.spellLock, S.seduction) },
+					.. "/cast [@focus,harm,nodead,pet:%s][@mouseover,harm,nodead,pet:%s][pet:%s] %s")
+					:format(S.spellLock, SUCCUBUS, SUCCUBUS, SUCCUBUS, S.seduction) },
 			-- SHIFT-F: the demon's second button.
 			{ name = "RK PetUtility", icon = "Spell_Nature_Purge",
 				body = ("#showtooltip\n/cast [pet:Felhunter,@mouseover,exists][pet:Felhunter] %s; [pet:Voidwalker] %s; "
-					.. "[pet:Succubus] %s; [pet:Imp,@mouseover,help,nodead][pet:Imp] %s")
-					:format(S.devourMagic, S.sacrifice, S.lashOfPain, S.fireShield) },
+					.. "[pet:%s] %s; [pet:Imp,@mouseover,help,nodead][pet:Imp] %s")
+					:format(S.devourMagic, S.sacrifice, SUCCUBUS, S.lashOfPain, S.fireShield) },
 			{ name = "RK PetAssist", icon = "Spell_Shadow_GatherShadows", body = "/petattack [@party1target]" },
 			-- Z / SHIFT-Z when Grimoire isn't loaded (with it, they click Grimoire's buttons).
 			{ name = "RK Healthstone", icon = "INV_Stone_04",
@@ -162,7 +175,7 @@ local PROFILES = {
 			-- Bar 1: plain keys
 			{ key = "1", slot = 1, spell = S.shadowBolt },
 			{ key = "2", slot = 2, macro = "RK Corruption" },
-			{ key = "3", slot = 3, spell = S.agony },
+			{ key = "3", slot = 3, macro = "RK Agony" },
 			{ key = "4", slot = 4, spell = S.immolate },
 			{ key = "5", slot = 5, spell = S.drainLife },
 			{ key = "Q", slot = 6, spell = S.lifeTap },
@@ -217,7 +230,7 @@ local MOVEMENT = {
 }
 
 -- Bump when the key layout changes, so characters set up on an older one are told.
-local LAYOUT = 2
+local LAYOUT = 3
 
 local AUTO_ICON = 134400 -- INV_Misc_QuestionMark: the "automatic" icon #showtooltip replaces
 local FALLBACK_ICON = "Spell_Shadow_ShadowBolt"
