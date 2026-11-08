@@ -7,10 +7,11 @@
 -- =====================================================================================
 
 -- Spell names exactly as the spellbook shows them. Ranks share one name in Forever, so
--- the highest known rank is found by name.
+-- the highest known rank is found by name. A list means "any of these names" (for spells
+-- that were renamed between expansions); the first one learned wins.
 local S = {
 	corruption = "Corruption",
-	agony = "Bane of Agony",
+	agony = { "Curse of Agony", "Bane of Agony" },
 	drainLife = "Drain Life",
 	shadowBolt = "Shadow Bolt",
 	immolate = "Immolate",
@@ -46,12 +47,18 @@ local PROFILES = {
 	WARLOCK = {
 		-- false = build RK Panic from what RavenKit knows instead of the [known:] conditional
 		useKnownConditional = true,
+		-- icon: shown until one of `spells` is learned; after that the macro uses the
+		-- automatic icon so #showtooltip shows the spell it will actually cast.
 		macros = {
-			{ name = "RK Corruption", body = ("#showtooltip %s\n/petattack\n/cast %s"):format(S.corruption, S.corruption) },
-			{ name = "RK Curse", body = ("#showtooltip\n/cast [mod:shift] %s; [mod:ctrl] %s; %s"):format(S.tongues, S.exhaustion, S.weakness) },
-			{ name = "RK Wand", body = ("#showtooltip %s\n/cast !%s"):format(S.shoot, S.shoot) },
-			{ name = "RK Fear", body = ("#showtooltip %s\n/cast [@mouseover,harm,nodead][] %s"):format(S.fear, S.fear) },
-			{ name = "RK Panic", body = function(profile, known)
+			{ name = "RK Corruption", icon = "Spell_Shadow_AbominationExplosion", spells = { S.corruption },
+				body = ("#showtooltip %s\n/petattack\n/cast %s"):format(S.corruption, S.corruption) },
+			{ name = "RK Curse", icon = "Spell_Shadow_CurseOfMannoroth", spells = { S.weakness, S.tongues, S.exhaustion },
+				body = ("#showtooltip\n/cast [mod:shift] %s; [mod:ctrl] %s; %s"):format(S.tongues, S.exhaustion, S.weakness) },
+			{ name = "RK Wand", icon = "Ability_ShootWand", spells = { S.shoot },
+				body = ("#showtooltip %s\n/cast !%s"):format(S.shoot, S.shoot) },
+			{ name = "RK Fear", icon = "Spell_Shadow_Possession", spells = { S.fear },
+				body = ("#showtooltip %s\n/cast [@mouseover,harm,nodead][] %s"):format(S.fear, S.fear) },
+			{ name = "RK Panic", icon = "Spell_Shadow_DeathCoil", spells = { S.deathCoil }, body = function(profile, known)
 				if profile.useKnownConditional then
 					return ("#showtooltip\n/cast [known:%s] %s; [pet:Voidwalker] %s"):format(S.deathCoil, S.deathCoil, S.sacrifice)
 				elseif known(S.deathCoil) then
@@ -59,8 +66,10 @@ local PROFILES = {
 				end
 				return ("#showtooltip\n/cast [pet:Voidwalker] %s"):format(S.sacrifice)
 			end },
-			{ name = "RK PetSpecial", body = ("#showtooltip\n/cast [pet:Voidwalker] %s; [pet:Succubus] %s; [pet:Felhunter] %s; [pet:Imp] %s"):format(S.sacrifice, S.seduction, S.devourMagic, S.fireShield) },
-			{ name = "RK PetAssist", body = "/petattack [@party1target]" },
+			-- Pet abilities live in the pet's spellbook, so these keep their fixed icons.
+			{ name = "RK PetSpecial", icon = "Spell_Shadow_SummonVoidWalker",
+				body = ("#showtooltip\n/cast [pet:Voidwalker] %s; [pet:Succubus] %s; [pet:Felhunter] %s; [pet:Imp] %s"):format(S.sacrifice, S.seduction, S.devourMagic, S.fireShield) },
+			{ name = "RK PetAssist", icon = "Spell_Shadow_GatherShadows", body = "/petattack [@party1target]" },
 		},
 		keys = {
 			-- Bar 1
@@ -110,7 +119,8 @@ local MOVEMENT = {
 	STRAFELEFT = true, STRAFERIGHT = true, JUMP = true, TOGGLEAUTORUN = true,
 }
 
-local MACRO_ICON = 134400 -- INV_Misc_QuestionMark: #showtooltip picks the real icon
+local AUTO_ICON = 134400 -- INV_Misc_QuestionMark: the "automatic" icon #showtooltip replaces
+local FALLBACK_ICON = "Spell_Shadow_ShadowBolt"
 local PET_SLOTS = NUM_PET_ACTION_SLOTS or 10
 local CHARACTER_SET = (BINDING_SET and BINDING_SET.Character) or CHARACTER_BINDINGS or 2
 local MAX_CHAR_MACROS = (Constants and Constants.MacroConsts and Constants.MacroConsts.MAX_CHARACTER_MACROS) or MAX_CHARACTER_MACROS or 18
@@ -142,7 +152,33 @@ end
 
 -- Highest known rank of a spell by name, or nil. The spellbook lists ranks in order, so
 -- the last match wins. Unlearned "future" spells and passives are skipped.
-local function FindSpell(name)
+local FindOneSpell
+local function FindSpell(names)
+	if type(names) ~= "table" then return FindOneSpell(names) end
+	for _, name in ipairs(names) do
+		local id = FindOneSpell(name)
+		if id then return id end
+	end
+end
+
+-- true when spellName is (one of) the configured name(s).
+local function NameMatches(names, spellName)
+	if not spellName or not names then return false end
+	if type(names) ~= "table" then return names == spellName end
+	for _, name in ipairs(names) do
+		if name == spellName then return true end
+	end
+	return false
+end
+
+-- The name to show: the learned variant, else the first.
+local function DisplayName(names)
+	if type(names) ~= "table" then return names end
+	local id = FindSpell(names)
+	return (id and SpellName(id)) or names[1]
+end
+
+FindOneSpell = function(name)
 	if not name then return end
 	local best
 	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
@@ -199,9 +235,9 @@ local function EntryLabel(entry)
 	if entry.label then return entry.label end
 	if entry.macro then return "macro " .. entry.macro end
 	if entry.placeholder and not IsKnown(entry.spell) then
-		return entry.spell .. " (" .. entry.placeholder .. " until learned)"
+		return DisplayName(entry.spell) .. " (" .. DisplayName(entry.placeholder) .. " until learned)"
 	end
-	return entry.spell
+	return DisplayName(entry.spell)
 end
 
 -- =====================================================================================
@@ -229,15 +265,32 @@ end
 
 -- Creates missing macros and resets existing ones to the canonical body.
 -- quiet: only report problems (used by the automatic refresh).
+-- Fixed icon until one of the macro's spells is learned, then the automatic icon.
+local function MacroIcon(macro)
+	if macro.spells then
+		for _, spell in ipairs(macro.spells) do
+			if IsKnown(spell) then return AUTO_ICON, "auto" end
+		end
+	end
+	local name = macro.icon or FALLBACK_ICON
+	-- Resolve the icon name to a file ID (what the macro UI itself passes); fall back
+	-- to the name string, which CreateMacro/EditMacro also accept.
+	local fileID = GetFileIDFromPath and GetFileIDFromPath("Interface\\Icons\\" .. name)
+	return fileID or name, name
+end
+
 local function UpdateMacros(quiet)
 	local created, edited, failed = {}, 0, {}
+	db.macroIcon = db.macroIcon or {}
 	for _, macro in ipairs(profile.macros) do
 		local body = MacroBody(macro)
+		local icon, iconKey = MacroIcon(macro)
 		local index = GetMacroIndexByName(macro.name)
 		if index and index > 0 then
 			local _, _, oldBody = GetMacroInfo(index)
-			if oldBody ~= body then
-				EditMacro(index, macro.name, nil, body)
+			if oldBody ~= body or db.macroIcon[macro.name] ~= iconKey then
+				EditMacro(index, macro.name, icon, body)
+				db.macroIcon[macro.name] = iconKey
 				edited = edited + 1
 			end
 		else
@@ -245,7 +298,8 @@ local function UpdateMacros(quiet)
 			if numChar >= MAX_CHAR_MACROS then
 				table.insert(failed, macro.name)
 			else
-				CreateMacro(macro.name, MACRO_ICON, body, true)
+				CreateMacro(macro.name, icon, body, true)
+				db.macroIcon[macro.name] = iconKey
 				table.insert(created, macro.name)
 			end
 		end
@@ -284,7 +338,7 @@ local function SlotIsOurs(entry)
 	end
 	if kind ~= "spell" then return false end
 	local name = SpellName(id)
-	return name == entry.spell or (entry.placeholder ~= nil and name == entry.placeholder)
+	return NameMatches(entry.spell, name) or NameMatches(entry.placeholder, name)
 end
 
 -- Fills reserved slots. A slot is only touched when it's empty or already holds the
@@ -313,7 +367,7 @@ local function PlaceActions(quiet)
 						PlaceAction(entry.slot)
 						ClearCursor() -- drops the old rank/placeholder that PlaceAction picked up
 						db.placed[entry.slot] = current
-						local label = kind == "macro" and entry.macro or SpellName(id) or entry.spell
+						local label = kind == "macro" and entry.macro or SpellName(id) or DisplayName(entry.spell)
 						table.insert(placed, ("%s -> slot %d [%s]"):format(label, entry.slot, entry.key))
 					end
 				end
@@ -350,8 +404,28 @@ local function ApplyBindings()
 			end
 		end
 	end
+	-- Old keys still bound to a RavenKit slot (e.g. 6 on button 6 once E owns it) would
+	-- still fire it and ElvUI shows the first key, so free them. /ravenkit undo restores.
+	local cleared = {}
+	local mine = {}
+	for _, entry in ipairs(profile.keys) do mine[entry.key] = true end
+	for _, entry in ipairs(profile.keys) do
+		if entry.slot then
+			local command = EntryCommand(entry)
+			if GetBindingAction(entry.key) == command then
+				for _, other in ipairs({ GetBindingKey(command) }) do
+					if other ~= entry.key and not mine[other] then
+						if db.undo[other] == nil then db.undo[other] = command end
+						SetBinding(other)
+						table.insert(cleared, other)
+					end
+				end
+			end
+		end
+	end
 	SaveBindings(CHARACTER_SET)
 	if #replaced > 0 then Print("Replaced bindings: " .. table.concat(replaced, ", ")) end
+	if #cleared > 0 then Print("Freed old keys: " .. table.concat(cleared, ", ")) end
 	if #refused > 0 then
 		Print("|cffff5555Not bound|r (only key for a movement action, or error): " .. table.concat(refused, ", "))
 	end

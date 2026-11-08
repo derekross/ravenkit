@@ -49,7 +49,7 @@ Rules it follows:
 | Key | Action | Action slot (ElvUI bar / binding) |
 |---|---|---|
 | 1 | macro RK Corruption | 1 (bar 1, ACTIONBUTTON1) |
-| 2 | Bane of Agony | 2 (bar 1, ACTIONBUTTON2) |
+| 2 | Curse of Agony (or Bane of Agony) | 2 (bar 1, ACTIONBUTTON2) |
 | 3 | Drain Life (Shadow Bolt until learned) | 3 (bar 1, ACTIONBUTTON3) |
 | 4 | Shadow Bolt (Nightfall/Shadow Trance procs) | 4 (bar 1, ACTIONBUTTON4) |
 | 5 | Immolate | 5 (bar 1, ACTIONBUTTON5) |
@@ -144,3 +144,13 @@ was placed).
 ## License
 
 MIT. See `LICENSE`.
+
+## Changelog
+
+### 0.2.0
+- Macros get real icons (Corruption, curse, wand, Fear, Death Coil, demon) instead of the red
+  question mark until their spell is learned; after that they switch to the automatic icon.
+- RK PetAssist no longer shows a question mark.
+- Agony is found as either "Curse of Agony" or "Bane of Agony".
+- Setup frees the old keys still bound to RavenKit's buttons (e.g. 6/7/8 once E/R/F own them),
+  so the bar shows the right key. `/ravenkit undo` restores them.
