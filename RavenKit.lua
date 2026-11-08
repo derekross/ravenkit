@@ -75,7 +75,7 @@ local PROFILES = {
 			-- Bar 1
 			{ key = "1", slot = 1, macro = "RK Corruption" },
 			{ key = "2", slot = 2, spell = S.agony },
-			{ key = "3", slot = 3, spell = S.drainLife, placeholder = S.shadowBolt },
+			{ key = "3", slot = 3, spell = S.drainLife },
 			{ key = "4", slot = 4, spell = S.shadowBolt },
 			{ key = "5", slot = 5, spell = S.immolate },
 			{ key = "E", slot = 6, macro = "RK Curse" },
@@ -350,7 +350,23 @@ local function PlaceActions(quiet)
 	for _, entry in ipairs(profile.keys) do
 		if entry.slot then
 			local kind, id = Wanted(entry)
-			if kind and not SlotIsOurs(entry) then
+			if not kind and db.placed[entry.slot] then
+				-- Nothing to put here (yet), but RavenKit placed something earlier, e.g. the
+				-- old Shadow Bolt stand-in. Remove it only if the slot still holds exactly that.
+				local hasKind, hasID = GetActionInfo(entry.slot)
+				hasKind, hasID = Safe(hasKind), Safe(hasID)
+				local holds = hasKind and (hasKind == "macro" and ("macro:" .. (Safe(GetActionText(entry.slot)) or ""))
+					or (hasKind .. ":" .. tostring(hasID)))
+				if not hasKind or holds == db.placed[entry.slot] then
+					if hasKind then
+						ClearCursor()
+						PickupAction(entry.slot)
+						ClearCursor()
+						table.insert(placed, ("cleared slot %d [%s]"):format(entry.slot, entry.key))
+					end
+					db.placed[entry.slot] = nil
+				end
+			elseif kind and not SlotIsOurs(entry) then
 				table.insert(skipped, entry.key .. " (slot " .. entry.slot .. ")")
 			elseif kind then
 				local hasAction = Safe(HasAction(entry.slot))

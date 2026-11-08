@@ -35,9 +35,9 @@ new `_..._` folder next to `_classic_beta_`, e.g. `_classic_`, and use its `Inte
 Rules it follows:
 - Never acts in combat: anything requested in combat runs when combat ends.
 - A reserved slot is only filled if it's empty or already holds the RavenKit item for that slot
-  (any rank of that spell, or the slot-3 Shadow Bolt placeholder). Anything you put there
+  (any rank of that spell). Anything you put there
   yourself is left alone (setup tells you which slots it skipped).
-- Slot 3 holds Shadow Bolt until Drain Life is learned, then swaps to Drain Life.
+- Slot 3 stays empty until Drain Life is learned.
 - New ranks: the slot is re-placed with the highest known rank when it changes.
 - A key that is the *only* key for a movement action (move/turn/strafe/jump/autorun) is never
   rebound; setup reports it instead.
@@ -50,7 +50,7 @@ Rules it follows:
 |---|---|---|
 | 1 | macro RK Corruption | 1 (bar 1, ACTIONBUTTON1) |
 | 2 | Curse of Agony (or Bane of Agony) | 2 (bar 1, ACTIONBUTTON2) |
-| 3 | Drain Life (Shadow Bolt until learned) | 3 (bar 1, ACTIONBUTTON3) |
+| 3 | Drain Life | 3 (bar 1, ACTIONBUTTON3) |
 | 4 | Shadow Bolt (Nightfall/Shadow Trance procs) | 4 (bar 1, ACTIONBUTTON4) |
 | 5 | Immolate | 5 (bar 1, ACTIONBUTTON5) |
 | E | macro RK Curse | 6 (bar 1, ACTIONBUTTON6) |
@@ -146,6 +146,10 @@ was placed).
 MIT. See `LICENSE`.
 
 ## Changelog
+
+### 0.2.1
+- Slot 3 stays empty until Drain Life is learned (no more Shadow Bolt stand-in). Setup removes
+  the old stand-in if it's still there.
 
 ### 0.2.0
 - Macros get real icons (Corruption, curse, wand, Fear, Death Coil, demon) instead of the red
