@@ -4,8 +4,9 @@ Personal WoW: Forever addon for Raven Soulbinder (Undead Affliction Warlock). On
 the macros, fills reserved action-bar slots and sets the keybinds. While leveling, newly learned
 spells (and new ranks) drop into their reserved slots automatically.
 
-Works with ElvUI v16 bars and Derek's Grimoire addon (Life Tap, Healthstone and Soulstone keys
-click Grimoire's buttons). Movement keys (WASD, A/D strafe) are never touched.
+Works with ElvUI v16 bars (1 and 3) and, optionally, Derek's Grimoire addon (the Healthstone and
+Soulstone keys click Grimoire's buttons when it's loaded). Movement keys (WASD, A/D strafe) are
+never touched.
 
 ## Install
 
@@ -37,7 +38,8 @@ Rules it follows:
 - A reserved slot is only filled if it's empty or already holds the RavenKit item for that slot
   (any rank of that spell). Anything you put there
   yourself is left alone (setup tells you which slots it skipped).
-- Slot 3 stays empty until Drain Life is learned.
+- A slot RavenKit filled under an older layout counts as RavenKit's, so a new layout moves
+  its own buttons but still leaves yours alone.
 - New ranks: the slot is re-placed with the highest known rank when it changes.
 - A key that is the *only* key for a movement action (move/turn/strafe/jump/autorun) is never
   rebound; setup reports it instead.
@@ -46,80 +48,45 @@ Rules it follows:
 
 ## Keys and slots
 
-| Key | Action | Action slot (ElvUI bar / binding) |
+One layout for raiding, PvP and leveling. Plain keys are on ElvUI **bar 1**, the SHIFT layer is
+on **bar 3**; SHIFT + a key is a related spell. Show **12 buttons** on both bars
+(`/ec` > Action Bars > Bar 1 / Bar 3 > Buttons). Keys stay empty until the spell is learned and
+never move as you level. Talent spells fall back to a baseline spell when you don't have them.
+
+| Key | Plain (bar 1) | SHIFT + key (bar 3) |
 |---|---|---|
-| 1 | macro RK Corruption | 1 (bar 1, ACTIONBUTTON1) |
-| 2 | Curse of Agony (or Bane of Agony) | 2 (bar 1, ACTIONBUTTON2) |
-| 3 | Drain Life | 3 (bar 1, ACTIONBUTTON3) |
-| 4 | Shadow Bolt (Nightfall/Shadow Trance procs) | 4 (bar 1, ACTIONBUTTON4) |
-| 5 | Immolate | 5 (bar 1, ACTIONBUTTON5) |
-| E | macro RK Curse | 6 (bar 1, ACTIONBUTTON6) |
-| R | macro RK Wand | 7 (bar 1, ACTIONBUTTON7) |
-| F | Drain Soul | 8 (bar 1, ACTIONBUTTON8) |
-| G | Health Funnel | 9 (bar 1, ACTIONBUTTON9) |
-| T | Siphon Life (talent, 30) | 10 (bar 1, ACTIONBUTTON10) |
-| X | Howl of Terror (40) | 11 (bar 1, ACTIONBUTTON11) |
-| C | Banish (28) | 12 (bar 1, ACTIONBUTTON12) |
-| V | Hellfire (30) | 25 (bar 3 button 1, MULTIACTIONBAR3BUTTON1) |
-| SHIFT-T | Wrack (talent, 40) | 26 (bar 3 button 2, MULTIACTIONBAR3BUTTON2) |
-| BUTTON4 (mouse) | macro RK Fear | 27 (bar 3 button 3, MULTIACTIONBAR3BUTTON3) |
-| BUTTON5 (mouse) | macro RK Panic | 28 (bar 3 button 4, MULTIACTIONBAR3BUTTON4) |
-| SHIFT-3 | macro RK PetSpecial | 29 (bar 3 button 5, MULTIACTIONBAR3BUTTON5) |
-| SHIFT-4 | macro RK PetAssist | 30 (bar 3 button 6, MULTIACTIONBAR3BUTTON6) |
-| Q | Life Tap | Grimoire: CLICK GrimoireLifeTapButton:LeftButton |
-| Z | Healthstone | Grimoire: CLICK GrimoireHealthstoneButton:LeftButton |
-| SHIFT-Z | Soulstone | Grimoire: CLICK GrimoireSoulstoneButton:LeftButton |
-| SHIFT-1 | Pet Attack | pet bar: BONUSACTIONBUTTON1 (read from the live pet bar if a demon is out) |
-| SHIFT-2 | Pet Follow | pet bar: BONUSACTIONBUTTON2 (same) |
+| 1 | Shadow Bolt (slot 1) | RK Burst: Shadowburn (cancels your cast) if talented, else Searing Pain (25) |
+| 2 | RK Corruption: Corruption + pet attack (2) | Siphon Life if talented, else Drain Mana (26) |
+| 3 | Curse/Bane of Agony (3) | Curse of the Elements (27) |
+| 4 | Immolate (4) | Conflagrate, else Wrack, else Soul Fire (28) |
+| 5 | Drain Life (5) | Drain Soul (29) |
+| Q | Life Tap (6) | Curse of Weakness (30) |
+| E | RK Curse: Tongues; CTRL-E Exhaustion if talented (7) | Hellfire (31) |
+| R | RK Wand (8) | Rain of Fire (32) |
+| F | RK PetSpecial: Spell Lock / Seduction on focus > mouseover > target (9) | RK PetUtility: Devour Magic / Sacrifice / Lash of Pain / Fire Shield (33) |
+| C | RK Banish, mouseover first (10) | RK FocusFear: Fear on focus > mouseover > target (34) |
+| MOUSE4 | RK Fear, mouseover first (11) | Howl of Terror (36, same button as X) |
+| MOUSE5 | RK Panic: Death Coil (cancels your cast), Sacrifice before it's learned (12) | Health Funnel (35) |
+| X | Howl of Terror (36) | RK PetAssist: pet attacks party1's target (no button) |
+| Z | Healthstone (no button) | Soulstone: mouseover > friendly target > you (no button) |
+| CTRL-1 / CTRL-2 | Pet Attack / Pet Follow (pet bar, Blizzard's default keys) | |
 
-Bar 3 is ElvUI's default 6-button bar (action slots 25-30). Bar 3 buttons 7-12 and all of bar 2
-stay free. Setup prints every binding it replaces (all restored by undo); with Blizzard defaults
-expect things like Q/E strafe and SHIFT-1..4 action-bar page switching.
+Z and SHIFT-Z click Grimoire's buttons when Grimoire is loaded (they also create the stone when
+you have none). Without Grimoire they use RavenKit's RK Healthstone / RK Soulstone macros, which
+use the best stones you can make. RavenKit switches between the two at login.
 
-Note on modifiers: `[mod:shift]` / `[mod:ctrl]` in RK Curse only work while SHIFT-E / CTRL-E have
-no binding of their own.
+A/D, W/S, space and autorun are never touched. Setup prints every binding it replaces;
+`/ravenkit undo` restores them all.
 
 ## Macros
 
-```
-RK Corruption
-#showtooltip Corruption
-/petattack
-/cast Corruption
+Bodies are in the config block at the top of `RavenKit.lua` (several are built from what you've
+learned, so they change with your talents). `/ravenkit status` lists each key.
 
-RK Curse
-#showtooltip
-/cast [mod:shift] Curse of Tongues; [mod:ctrl] Curse of Exhaustion; Curse of Weakness
-
-RK Wand
-#showtooltip Shoot
-/cast !Shoot
-
-RK Fear
-#showtooltip Fear
-/cast [@mouseover,harm,nodead][] Fear
-
-RK Panic
-#showtooltip
-/cast [known:Death Coil] Death Coil; [pet:Voidwalker] Sacrifice
-
-RK PetSpecial
-#showtooltip
-/cast [pet:Voidwalker] Sacrifice; [pet:Succubus] Seduction; [pet:Felhunter] Devour Magic; [pet:Imp] Fire Shield
-
-RK PetAssist
-/petattack [@party1target]
-```
-
-RavenKit keeps these bodies up to date when spells change. If you edit one in the macro window,
+RavenKit keeps the bodies up to date when spells change. If you edit one in the macro window,
 auto-fill leaves your version alone; `/ravenkit setup` resets it to RavenKit's body. To change
 a macro for good, edit it in `RavenKit.lua`. RavenKit only touches its own character macros,
-never an account-wide macro with the same name.
-
-**If `[known:]` doesn't work in Forever** (RK Panic does nothing on a level 42+ character with
-Death Coil): set `useKnownConditional = false` in the WARLOCK profile. RavenKit then writes
-`/cast Death Coil` once Death Coil is learned and `/cast [pet:Voidwalker] Sacrifice` before that,
-updating the macro itself when you learn it.
+never an account-wide macro with the same name. It uses 13 character macros.
 
 ## Editing
 
@@ -136,7 +103,8 @@ was placed).
 ## Not verified in game (no client running when this was written)
 
 - Pet bar binding names (BONUSACTIONBUTTONn) and Attack=1 / Follow=2 when no demon is out.
-- `[known:]` macro conditional support in Forever.
+- `@focus` and `pet:Felhunter`-style conditionals in RK PetSpecial / RK FocusFear.
+- `/use item:<id>` with target conditionals in RK Soulstone.
 - Spell ranks: whether Forever action buttons auto-upgrade ranks. RavenKit re-places the highest
   known rank either way.
 - Spellbook API used to find spells by name (C_SpellBook skill lines); falls back to
@@ -149,6 +117,18 @@ was placed).
 MIT. See `LICENSE`.
 
 ## Changelog
+
+### 0.3.0
+- New key layout for raiding, PvP and leveling: plain keys on bar 1, a SHIFT layer on bar 3
+  (SHIFT-1..5, SHIFT-Q/E/R/F/C, SHIFT-MOUSE4/5). Shadow Bolt moves to 1.
+- Talent fallbacks: Shadowburn > Searing Pain, Siphon Life > Drain Mana,
+  Conflagrate > Wrack > Soul Fire, Curse of Exhaustion on CTRL-E only when talented.
+- New: Curse of the Elements, Life Tap as a real button on Q, pet interrupt/CC on F with
+  focus > mouseover > target, focus Fear, mouseover Banish, Death Coil cancels your cast.
+- Pet Attack/Follow move to CTRL-1/CTRL-2 (Blizzard's defaults).
+- Z/SHIFT-Z work without Grimoire (RavenKit stone macros); with Grimoire they click its buttons.
+- Setup moves RavenKit's own buttons from the old layout; characters on the old layout are told
+  at login. RK Panic no longer relies on the untested `[known:]` conditional.
 
 ### 0.2.2
 - No duplicate macros on login: auto-fill waits until the macro list has loaded.

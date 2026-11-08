@@ -10,95 +10,192 @@
 -- the highest known rank is found by name. A list means "any of these names" (for spells
 -- that were renamed between expansions); the first one learned wins.
 local S = {
+	shadowBolt = "Shadow Bolt",
 	corruption = "Corruption",
 	agony = { "Curse of Agony", "Bane of Agony" },
-	drainLife = "Drain Life",
-	shadowBolt = "Shadow Bolt",
 	immolate = "Immolate",
+	drainLife = "Drain Life",
 	drainSoul = "Drain Soul",
+	drainMana = "Drain Mana",
+	lifeTap = "Life Tap",
+	searingPain = "Searing Pain",
+	soulFire = "Soul Fire",
+	shadowburn = "Shadowburn",    -- talent (Destruction)
+	conflagrate = "Conflagrate",  -- talent (Destruction)
+	siphonLife = "Siphon Life",   -- talent (Affliction, 30)
+	wrack = "Wrack",              -- talent (Affliction, 40)
 	healthFunnel = "Health Funnel",
-	siphonLife = "Siphon Life",   -- talent (30)
-	wrack = "Wrack",              -- talent (40)
 	howl = "Howl of Terror",
 	banish = "Banish",
 	hellfire = "Hellfire",
 	fear = "Fear",
 	deathCoil = "Death Coil",
 	shoot = "Shoot",
-	tongues = "Curse of Tongues",
-	exhaustion = "Curse of Exhaustion",
+	elements = "Curse of the Elements",
 	weakness = "Curse of Weakness",
-	-- demon abilities
-	sacrifice = "Sacrifice",
-	seduction = "Seduction",
+	tongues = "Curse of Tongues",
+	exhaustion = "Curse of Exhaustion", -- talent (Affliction)
+	-- demon abilities (pet spellbook)
+	spellLock = "Spell Lock",
 	devourMagic = "Devour Magic",
+	seduction = "Seduction",
+	lashOfPain = "Lash of Pain",
+	sacrifice = "Sacrifice",
 	fireShield = "Fire Shield",
 }
 
+-- Stone ranks, best first: { create spell, item IDs (Improved Healthstone variants first) }.
+-- Only used for the Z / SHIFT-Z macros when Grimoire isn't loaded.
+local HEALTHSTONES = {
+	{ 11730, { 19013, 19012, 9421 } }, -- Major
+	{ 11729, { 19011, 19010, 5510 } }, -- Greater
+	{ 5699, { 19009, 19008, 5509 } },  -- Healthstone
+	{ 6202, { 19007, 19006, 5511 } },  -- Lesser
+	{ 6201, { 19005, 19004, 5512 } },  -- Minor
+}
+local SOULSTONES = {
+	{ 20757, 16896 }, -- Major
+	{ 20756, 16895 }, -- Greater
+	{ 20755, 16893 }, -- Soulstone
+	{ 20752, 16892 }, -- Lesser
+	{ 693, 5232 },    -- Minor
+}
+
+local function RankKnown(spellID)
+	return C_SpellBook and C_SpellBook.IsSpellKnown and C_SpellBook.IsSpellKnown(spellID)
+end
+
+-- /use lines for the best stones this character can make (max `limit` ranks).
+local function StoneLines(ranks, limit, prefix)
+	local lines, n = {}, 0
+	for _, rank in ipairs(ranks) do
+		if n < limit and RankKnown(rank[1]) then
+			n = n + 1
+			local items = type(rank[2]) == "table" and rank[2] or { rank[2] }
+			for _, item in ipairs(items) do
+				table.insert(lines, ("/use %sitem:%d"):format(prefix, item))
+			end
+		end
+	end
+	return table.concat(lines, "\n")
+end
+
+-- Which Grimoire binding or RavenKit macro a stone key uses.
+local function GrimoireLoaded()
+	return C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("Grimoire") or false
+end
+
 -- Profiles keyed by class (UnitClass token). Only WARLOCK exists for now.
---   macros: name -> body (string, or function(known) returning a string)
+--   macros: { name, icon, spells, body } where body is a string or function(profile, known)
+--           returning one; bodies are rebuilt when spells change (talent fallbacks).
 --   keys:   in order; each has a key plus one of:
---     slot + spell [+ placeholder]  spell in that action slot (placeholder until learned)
+--     slot + spell [+ placeholder]  spell in that action slot. A spell list means "first
+--                                   learned wins", which is how the talent fallbacks work.
 --     slot + macro                  macro in that action slot
---     command                       a raw binding command (e.g. Grimoire's click bindings)
+--     command [+ choices]           a raw binding command, or function returning one;
+--                                   choices lists every command it may return
 --     pet                           a pet bar action token (PET_ACTION_ATTACK, ...)
 -- Action slots follow ElvUI's bar pages: bar 1 = slots 1-12, bar 3 = slots 25-36.
+-- Layout: plain keys on bar 1, the SHIFT layer on bar 3; SHIFT + key = a related spell.
 local PROFILES = {
 	WARLOCK = {
-		-- false = build RK Panic from what RavenKit knows instead of the [known:] conditional
-		useKnownConditional = true,
-		-- icon: shown until one of `spells` is learned; after that the macro uses the
-		-- automatic icon so #showtooltip shows the spell it will actually cast.
 		macros = {
 			{ name = "RK Corruption", icon = "Spell_Shadow_AbominationExplosion", spells = { S.corruption },
 				body = ("#showtooltip %s\n/petattack\n/cast %s"):format(S.corruption, S.corruption) },
-			{ name = "RK Curse", icon = "Spell_Shadow_CurseOfMannoroth", spells = { S.weakness, S.tongues, S.exhaustion },
-				body = ("#showtooltip\n/cast [mod:shift] %s; [mod:ctrl] %s; %s"):format(S.tongues, S.exhaustion, S.weakness) },
+			-- E: Tongues; CTRL-E: Exhaustion once talented.
+			{ name = "RK Curse", icon = "Spell_Shadow_CurseOfTounges", spells = { S.tongues },
+				body = function(_, known)
+					if known(S.exhaustion) then
+						return ("#showtooltip\n/cast [mod:ctrl] %s; %s"):format(S.exhaustion, S.tongues)
+					end
+					return ("#showtooltip %s\n/cast %s"):format(S.tongues, S.tongues)
+				end },
 			{ name = "RK Wand", icon = "Ability_ShootWand", spells = { S.shoot },
 				body = ("#showtooltip %s\n/cast !%s"):format(S.shoot, S.shoot) },
+			{ name = "RK Banish", icon = "Spell_Shadow_Cripple", spells = { S.banish },
+				body = ("#showtooltip %s\n/cast [@mouseover,harm,nodead][] %s"):format(S.banish, S.banish) },
 			{ name = "RK Fear", icon = "Spell_Shadow_Possession", spells = { S.fear },
 				body = ("#showtooltip %s\n/cast [@mouseover,harm,nodead][] %s"):format(S.fear, S.fear) },
-			{ name = "RK Panic", icon = "Spell_Shadow_DeathCoil", spells = { S.deathCoil }, body = function(profile, known)
-				if profile.useKnownConditional then
-					return ("#showtooltip\n/cast [known:%s] %s; [pet:Voidwalker] %s"):format(S.deathCoil, S.deathCoil, S.sacrifice)
-				elseif known(S.deathCoil) then
-					return ("#showtooltip\n/cast %s"):format(S.deathCoil)
-				end
-				return ("#showtooltip\n/cast [pet:Voidwalker] %s"):format(S.sacrifice)
-			end },
+			{ name = "RK FocusFear", icon = "Spell_Shadow_Possession", spells = { S.fear },
+				body = ("#showtooltip %s\n/cast [@focus,harm,nodead][@mouseover,harm,nodead][] %s"):format(S.fear, S.fear) },
+			-- MOUSE5: Death Coil (cancels your cast); Voidwalker Sacrifice until it's learned.
+			{ name = "RK Panic", icon = "Spell_Shadow_DeathCoil", spells = { S.deathCoil },
+				body = function(_, known)
+					if known(S.deathCoil) then
+						return ("#showtooltip %s\n/stopcasting\n/cast [@mouseover,harm,nodead][] %s"):format(S.deathCoil, S.deathCoil)
+					end
+					return ("#showtooltip\n/cast [pet:Voidwalker] %s"):format(S.sacrifice)
+				end },
+			-- SHIFT-1: Shadowburn (cancels your cast) if talented, else Searing Pain.
+			{ name = "RK Burst", icon = "Spell_Fire_SoulBurn", spells = { S.shadowburn, S.searingPain },
+				body = function(_, known)
+					if known(S.shadowburn) then
+						return ("#showtooltip %s\n/stopcasting\n/cast %s"):format(S.shadowburn, S.shadowburn)
+					end
+					return ("#showtooltip %s\n/cast %s"):format(S.searingPain, S.searingPain)
+				end },
+			-- F: the demon's interrupt or crowd control, on focus > mouseover > target.
 			-- Pet abilities live in the pet's spellbook, so these keep their fixed icons.
-			{ name = "RK PetSpecial", icon = "Spell_Shadow_SummonVoidWalker",
-				body = ("#showtooltip\n/cast [pet:Voidwalker] %s; [pet:Succubus] %s; [pet:Felhunter] %s; [pet:Imp] %s"):format(S.sacrifice, S.seduction, S.devourMagic, S.fireShield) },
+			{ name = "RK PetSpecial", icon = "Spell_Shadow_MindRot",
+				body = ("#showtooltip\n/cast [@focus,harm,nodead,pet:Felhunter][@mouseover,harm,nodead,pet:Felhunter][pet:Felhunter] %s\n"
+					.. "/cast [@focus,harm,nodead,pet:Succubus][@mouseover,harm,nodead,pet:Succubus][pet:Succubus] %s")
+					:format(S.spellLock, S.seduction) },
+			-- SHIFT-F: the demon's second button.
+			{ name = "RK PetUtility", icon = "Spell_Nature_Purge",
+				body = ("#showtooltip\n/cast [pet:Felhunter,@mouseover,exists][pet:Felhunter] %s; [pet:Voidwalker] %s; "
+					.. "[pet:Succubus] %s; [pet:Imp,@mouseover,help,nodead][pet:Imp] %s")
+					:format(S.devourMagic, S.sacrifice, S.lashOfPain, S.fireShield) },
 			{ name = "RK PetAssist", icon = "Spell_Shadow_GatherShadows", body = "/petattack [@party1target]" },
+			-- Z / SHIFT-Z when Grimoire isn't loaded (with it, they click Grimoire's buttons).
+			{ name = "RK Healthstone", icon = "INV_Stone_04",
+				body = function()
+					local lines = StoneLines(HEALTHSTONES, 2, "")
+					return "#showtooltip\n" .. (lines ~= "" and lines or "/use item:5512")
+				end },
+			{ name = "RK Soulstone", icon = "Spell_Shadow_SoulGem",
+				body = function()
+					local lines = StoneLines(SOULSTONES, 3, "[@mouseover,help][help][@player] ")
+					return "#showtooltip\n" .. (lines ~= "" and lines or "/use [@mouseover,help][help][@player] item:5232")
+				end },
 		},
 		keys = {
-			-- Bar 1
-			{ key = "1", slot = 1, macro = "RK Corruption" },
-			{ key = "2", slot = 2, spell = S.agony },
-			{ key = "3", slot = 3, spell = S.drainLife },
-			{ key = "4", slot = 4, spell = S.shadowBolt },
-			{ key = "5", slot = 5, spell = S.immolate },
-			{ key = "E", slot = 6, macro = "RK Curse" },
-			{ key = "R", slot = 7, macro = "RK Wand" },
-			{ key = "F", slot = 8, spell = S.drainSoul },
-			{ key = "G", slot = 9, spell = S.healthFunnel },
-			{ key = "T", slot = 10, spell = S.siphonLife },
-			{ key = "X", slot = 11, spell = S.howl },
-			{ key = "C", slot = 12, spell = S.banish },
-			-- Bar 3 (ElvUI default: 6 buttons shown)
-			{ key = "V", slot = 25, spell = S.hellfire },
-			{ key = "SHIFT-T", slot = 26, spell = S.wrack },
-			{ key = "BUTTON4", slot = 27, macro = "RK Fear" },
-			{ key = "BUTTON5", slot = 28, macro = "RK Panic" },
-			{ key = "SHIFT-3", slot = 29, macro = "RK PetSpecial" },
-			{ key = "SHIFT-4", slot = 30, macro = "RK PetAssist" },
-			-- Grimoire buttons
-			{ key = "Q", command = "CLICK GrimoireLifeTapButton:LeftButton", label = "Life Tap (Grimoire)" },
-			{ key = "Z", command = "CLICK GrimoireHealthstoneButton:LeftButton", label = "Healthstone (Grimoire)" },
-			{ key = "SHIFT-Z", command = "CLICK GrimoireSoulstoneButton:LeftButton", label = "Soulstone (Grimoire)" },
-			-- Pet bar
-			{ key = "SHIFT-1", pet = "PET_ACTION_ATTACK", petSlot = 1, label = "Pet Attack" },
-			{ key = "SHIFT-2", pet = "PET_ACTION_FOLLOW", petSlot = 2, label = "Pet Follow" },
+			-- Bar 1: plain keys
+			{ key = "1", slot = 1, spell = S.shadowBolt },
+			{ key = "2", slot = 2, macro = "RK Corruption" },
+			{ key = "3", slot = 3, spell = S.agony },
+			{ key = "4", slot = 4, spell = S.immolate },
+			{ key = "5", slot = 5, spell = S.drainLife },
+			{ key = "Q", slot = 6, spell = S.lifeTap },
+			{ key = "E", slot = 7, macro = "RK Curse" },
+			{ key = "R", slot = 8, macro = "RK Wand" },
+			{ key = "F", slot = 9, macro = "RK PetSpecial" },
+			{ key = "C", slot = 10, macro = "RK Banish" },
+			{ key = "BUTTON4", slot = 11, macro = "RK Fear" },
+			{ key = "BUTTON5", slot = 12, macro = "RK Panic" },
+			-- Bar 3: SHIFT layer (+ X)
+			{ key = "SHIFT-1", slot = 25, macro = "RK Burst" },
+			{ key = "SHIFT-2", slot = 26, spell = { S.siphonLife, S.drainMana } },
+			{ key = "SHIFT-3", slot = 27, spell = S.elements },
+			{ key = "SHIFT-4", slot = 28, spell = { S.conflagrate, S.wrack, S.soulFire } },
+			{ key = "SHIFT-5", slot = 29, spell = S.drainSoul },
+			{ key = "SHIFT-Q", slot = 30, spell = S.weakness },
+			{ key = "SHIFT-E", slot = 31, spell = S.hellfire },
+			{ key = "SHIFT-R", slot = 32, spell = "Rain of Fire" },
+			{ key = "SHIFT-F", slot = 33, macro = "RK PetUtility" },
+			{ key = "SHIFT-C", slot = 34, macro = "RK FocusFear" },
+			{ key = "SHIFT-BUTTON5", slot = 35, spell = S.healthFunnel },
+			{ key = "X", slot = 36, spell = S.howl },
+			{ key = "SHIFT-BUTTON4", slot = 36, spell = S.howl },
+			-- No button: stones (Grimoire's smart buttons if loaded) and pet commands
+			{ key = "Z", label = "Healthstone",
+				choices = { "CLICK GrimoireHealthstoneButton:LeftButton", "MACRO RK Healthstone" },
+				command = function() return GrimoireLoaded() and "CLICK GrimoireHealthstoneButton:LeftButton" or "MACRO RK Healthstone" end },
+			{ key = "SHIFT-Z", label = "Soulstone",
+				choices = { "CLICK GrimoireSoulstoneButton:LeftButton", "MACRO RK Soulstone" },
+				command = function() return GrimoireLoaded() and "CLICK GrimoireSoulstoneButton:LeftButton" or "MACRO RK Soulstone" end },
+			{ key = "SHIFT-X", command = "MACRO RK PetAssist", label = "Pet attacks party1's target" },
+			{ key = "CTRL-1", pet = "PET_ACTION_ATTACK", petSlot = 1, label = "Pet Attack" },
+			{ key = "CTRL-2", pet = "PET_ACTION_FOLLOW", petSlot = 2, label = "Pet Follow" },
 		},
 	},
 }
@@ -118,6 +215,9 @@ local MOVEMENT = {
 	MOVEFORWARD = true, MOVEBACKWARD = true, TURNLEFT = true, TURNRIGHT = true,
 	STRAFELEFT = true, STRAFERIGHT = true, JUMP = true, TOGGLEAUTORUN = true,
 }
+
+-- Bump when the key layout changes, so characters set up on an older one are told.
+local LAYOUT = 2
 
 local AUTO_ICON = 134400 -- INV_Misc_QuestionMark: the "automatic" icon #showtooltip replaces
 local FALLBACK_ICON = "Spell_Shadow_ShadowBolt"
@@ -230,6 +330,7 @@ end
 
 -- The binding command a key entry should hold.
 local function EntryCommand(entry)
+	if type(entry.command) == "function" then return entry.command() end
 	if entry.command then return entry.command end
 	if entry.pet then return "BONUSACTIONBUTTON" .. PetIndex(entry) end
 	return SlotCommand(entry.slot)
@@ -311,6 +412,9 @@ local function UpdateMacros(quiet)
 	db.macroBody = db.macroBody or {}
 	for _, macro in ipairs(profile.macros) do
 		local body = MacroBody(macro)
+		if #body > 255 then
+			Print(("|cffff5555%s is %d characters|r (the limit is 255); it will be cut off."):format(macro.name, #body))
+		end
 		local icon, iconKey = MacroIcon(macro)
 		local index = CharMacroIndex(macro.name)
 		if index then
@@ -369,10 +473,23 @@ local function Wanted(entry)
 end
 
 -- true when the slot is empty or holds this entry's item (any rank, or its placeholder).
+-- "macro:<name>" / "spell:<id>" for what a slot holds now, as recorded in db.placed.
+local function SlotHolds(slot)
+	local kind, id = GetActionInfo(slot)
+	kind, id = Safe(kind), Safe(id)
+	if not kind then return end
+	if kind == "macro" then return "macro:" .. (Safe(GetActionText(slot)) or "") end
+	return kind .. ":" .. tostring(id)
+end
+
 local function SlotIsOurs(entry)
 	local kind, id = GetActionInfo(entry.slot)
 	kind, id = Safe(kind), Safe(id)
 	if not kind then return true end
+	-- Whatever RavenKit put here before (an older layout, or another rank) is ours too.
+	local holds = SlotHolds(entry.slot)
+	if holds and holds == db.placed[entry.slot] then return true end
+	if kind == "macro" and (Safe(GetActionText(entry.slot)) or ""):find("^RK ") then return true end
 	if entry.macro then
 		return kind == "macro" and Safe(GetActionText(entry.slot)) == entry.macro
 	end
@@ -393,12 +510,9 @@ local function PlaceActions(quiet)
 			if not kind and db.placed[entry.slot] then
 				-- Nothing to put here (yet), but RavenKit placed something earlier, e.g. the
 				-- old Shadow Bolt stand-in. Remove it only if the slot still holds exactly that.
-				local hasKind, hasID = GetActionInfo(entry.slot)
-				hasKind, hasID = Safe(hasKind), Safe(hasID)
-				local holds = hasKind and (hasKind == "macro" and ("macro:" .. (Safe(GetActionText(entry.slot)) or ""))
-					or (hasKind .. ":" .. tostring(hasID)))
-				if not hasKind or holds == db.placed[entry.slot] then
-					if hasKind then
+				local holds = SlotHolds(entry.slot)
+				if not holds or holds == db.placed[entry.slot] then
+					if holds then
 						ClearCursor()
 						PickupAction(entry.slot)
 						ClearCursor()
@@ -516,16 +630,26 @@ end
 -- Commands
 -- =====================================================================================
 
--- Pet keys bind to wherever Attack/Follow sit on the live pet bar. Without a demon out
--- they fall back to slots 1/2, so re-check when one is summoned. Only keys still bound
--- to a pet button (that is, RavenKit's) are moved.
-local function UpdatePetBindings()
-	if not (db and db.applied) or not UnitExists("pet") then return end
+-- Keys whose command can change after setup: pet keys follow wherever Attack/Follow sit
+-- on the live pet bar (slots 1/2 without a demon out), and the stone keys switch between
+-- Grimoire's buttons and RavenKit's macros as Grimoire is enabled or disabled. Only keys
+-- still holding one of RavenKit's commands are moved.
+local function IsChoice(entry, command)
+	for _, choice in ipairs(entry.choices) do
+		if choice == command then return true end
+	end
+end
+
+local function UpdateDynamicBindings()
+	if not (db and db.applied) then return end
 	local changed
 	for _, entry in ipairs(profile.keys) do
-		if entry.pet then
-			local bound, want = GetBindingAction(entry.key), EntryCommand(entry)
-			if bound ~= want and bound:find("^BONUSACTIONBUTTON") then
+		local bound = GetBindingAction(entry.key) or ""
+		local ours = (entry.pet and UnitExists("pet") and bound:find("^BONUSACTIONBUTTON"))
+			or (entry.choices and IsChoice(entry, bound))
+		if ours then
+			local want = EntryCommand(entry)
+			if bound ~= want then
 				SetBinding(entry.key, want)
 				changed = true
 			end
@@ -538,9 +662,10 @@ local function Setup()
 	UpdateMacros(false)
 	local slotsDone = PlaceActions(false)
 	ApplyBindings()
-	db.applied, db.declined = true, nil
-	local grimoire = C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("Grimoire")
-	if not grimoire then Print("Grimoire isn't loaded: Q, Z and SHIFT-Z do nothing until it is.") end
+	db.applied, db.declined, db.layout = true, nil, LAYOUT
+	if not GrimoireLoaded() then
+		Print("Grimoire isn't loaded: Z and SHIFT-Z use RavenKit's stone macros (they can't create stones).")
+	end
 	if not UnitExists("pet") then
 		Print("No demon out: pet keys use pet bar slots 1/2 until you summon one.")
 	end
@@ -632,6 +757,11 @@ local function OnLogin()
 	pcall(frame.RegisterEvent, frame, "LEARNED_SPELL_IN_SKILL_LINE")
 	if not db.applied and not db.declined then
 		Print("/ravenkit setup to apply macros, action slots and keybinds.")
+	elseif db.applied then
+		if (db.layout or 1) < LAYOUT then
+			Print("|cffffd100New key layout available|r: /ravenkit setup to apply it (/ravenkit undo restores your keys).")
+		end
+		RunSafe("Stone keys", UpdateDynamicBindings, true)
 	end
 end
 
@@ -641,7 +771,7 @@ local function RequestPetBindings()
 	petPending = true
 	C_Timer.After(1, function()
 		petPending = nil
-		RunSafe("Pet keys", UpdatePetBindings, true)
+		RunSafe("Pet keys", UpdateDynamicBindings, true)
 	end)
 end
 
