@@ -38,6 +38,9 @@ Rules it follows:
 - A reserved slot is only filled if it's empty or already holds the RavenKit item for that slot
   (any rank of that spell). Anything you put there
   yourself is left alone (setup tells you which slots it skipped).
+- A spell the game auto-placed into an empty reserved slot (it drops newly learned spells in
+  the first empty bar 1 slot) doesn't count as yours: RavenKit replaces it once the slot's own
+  spell is learned. Demon summons in a reserved slot are always treated this way.
 - A slot RavenKit filled under an older layout counts as RavenKit's, so a new layout moves
   its own buttons but still leaves yours alone.
 - New ranks: the slot is re-placed with the highest known rank when it changes.
@@ -117,6 +120,11 @@ was placed).
 MIT. See `LICENSE`.
 
 ## Changelog
+
+### 0.3.2
+- Spells the game auto-places into a reserved slot (e.g. Summon Voidwalker landing on key 5
+  before Drain Life is learned) are replaced once the slot's spell is learned, instead of being
+  left alone as if you'd placed them.
 
 ### 0.3.1
 - Key 3 is now RK Agony: casts Amplify Curse first (when talented and off cooldown), then Agony.

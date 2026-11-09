@@ -45,6 +45,15 @@ local S = {
 	fireShield = "Fire Shield",
 }
 
+-- Spells the game auto-places on learning that can land in a reserved slot before its
+-- spell is learned (it fills the first empty slot). RavenKit may replace these even when
+-- it didn't see the game place them (e.g. placed before RavenKit tracked placements).
+local AUTO_PLACED = {
+	["Summon Imp"] = true, ["Summon Voidwalker"] = true, ["Summon Succubus"] = true,
+	["Summon Sayaad"] = true, ["Summon Felhunter"] = true, ["Summon Felsteed"] = true,
+	["Summon Dreadsteed"] = true,
+}
+
 -- [pet:] matches the demon type; Forever calls the Succubus "Sayaad", so accept both.
 local SUCCUBUS = "Succubus/Sayaad"
 
@@ -502,6 +511,8 @@ local function SlotIsOurs(entry)
 	-- Whatever RavenKit put here before (an older layout, or another rank) is ours too.
 	local holds = SlotHolds(entry.slot)
 	if holds and holds == db.placed[entry.slot] then return true end
+	-- The game auto-placed a newly learned spell into this empty reserved slot.
+	if holds and holds == db.pushed[entry.slot] then return true end
 	if kind == "macro" and (Safe(GetActionText(entry.slot)) or ""):find("^RK ") then return true end
 	if entry.macro then
 		return kind == "macro" and Safe(GetActionText(entry.slot)) == entry.macro
@@ -509,6 +520,7 @@ local function SlotIsOurs(entry)
 	if kind ~= "spell" then return false end
 	local name = SpellName(id)
 	return NameMatches(entry.spell, name) or NameMatches(entry.placeholder, name)
+		or AUTO_PLACED[name] == true
 end
 
 -- Fills reserved slots. A slot is only touched when it's empty or already holds the
@@ -516,6 +528,7 @@ end
 local function PlaceActions(quiet)
 	if GetCursorInfo() then return false end -- don't drop whatever Derek is dragging
 	db.placed = db.placed or {}
+	db.pushed = db.pushed or {}
 	local placed, skipped = {}, {}
 	for _, entry in ipairs(profile.keys) do
 		if entry.slot then
@@ -550,6 +563,7 @@ local function PlaceActions(quiet)
 						PlaceAction(entry.slot)
 						ClearCursor() -- drops the old rank/placeholder that PlaceAction picked up
 						db.placed[entry.slot] = current
+						db.pushed[entry.slot] = nil
 						local label = kind == "macro" and entry.macro or SpellName(id) or DisplayName(entry.spell)
 						table.insert(placed, ("%s -> slot %d [%s]"):format(label, entry.slot, entry.key))
 					end
@@ -768,6 +782,7 @@ local function OnLogin()
 	-- registering an event the client doesn't have is an error, so try each.
 	pcall(frame.RegisterEvent, frame, "LEARNED_SPELL_IN_TAB")
 	pcall(frame.RegisterEvent, frame, "LEARNED_SPELL_IN_SKILL_LINE")
+	pcall(frame.RegisterEvent, frame, "SPELL_PUSHED_TO_ACTIONBAR")
 	if not db.applied and not db.declined then
 		Print("/ravenkit setup to apply macros, action slots and keybinds.")
 	elseif db.applied then
@@ -788,9 +803,26 @@ local function RequestPetBindings()
 	end)
 end
 
-frame:SetScript("OnEvent", function(_, event)
+-- Reserved action slots, for SPELL_PUSHED_TO_ACTIONBAR.
+local function IsReservedSlot(slot)
+	for _, entry in ipairs(profile.keys) do
+		if entry.slot == slot then return true end
+	end
+end
+
+frame:SetScript("OnEvent", function(_, event, ...)
 	if event == "PLAYER_LOGIN" then
 		OnLogin()
+	elseif event == "SPELL_PUSHED_TO_ACTIONBAR" then
+		-- The game put a newly learned spell into an empty slot. In a reserved slot that
+		-- isn't the player's choice, so RavenKit may replace it once the slot's spell is
+		-- learned. Recorded even before setup, so a later setup can reclaim the slot.
+		local spellID, slot = ...
+		if profile and db and spellID and slot and IsReservedSlot(slot) then
+			db.pushed = db.pushed or {}
+			db.pushed[slot] = "spell:" .. tostring(spellID)
+		end
+		RequestAutoFill()
 	elseif event == "UPDATE_MACROS" then
 		local first = not macrosLoaded
 		macrosLoaded = true
