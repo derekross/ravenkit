@@ -121,6 +121,9 @@ MIT. See `LICENSE`.
 
 ## Changelog
 
+### 0.3.3
+- Published on CurseForge (project 1794317) as a WoW Forever addon.
+
 ### 0.3.2
 - Spells the game auto-places into a reserved slot (e.g. Summon Voidwalker landing on key 5
   before Drain Life is learned) are replaced once the slot's spell is learned, instead of being

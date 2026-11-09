@@ -3,8 +3,9 @@
 ## IconTexture: Interface\AddOns\RavenKit\Media\Icon
 ## Notes: One-command macros, action bar slots and keybinds for Raven Soulbinder (warlock). /ravenkit
 ## Author: Derek Ross
-## Version: 0.3.2
+## Version: 0.3.3
 ## OptionalDeps: ElvUI, Grimoire
 ## SavedVariablesPerCharacter: RavenKitCharDB
+## X-Curse-Project-ID: 1794317
 
 RavenKit.lua
